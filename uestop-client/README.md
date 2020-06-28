@@ -13,3 +13,11 @@ bash -s <project-name>
 
 The result will be a directory with the given `project-name` with the `package.json`'s `name` attribute set to the `project-name` as well.
 This script will also initialise a new Git repository.
+
+integrates and decouple distributed systems and components
+
+durability: messages are stored on multiple servers
+availability: redundant infrastructure
+scalability: canprocess each buffered request independently
+reliability: locks message so consumers and producers can work at the same time
+customize: queues can be customised such as payload size, delay and so on.

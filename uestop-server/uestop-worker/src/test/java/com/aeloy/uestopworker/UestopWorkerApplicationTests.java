@@ -1,10 +1,10 @@
-package com.aeloy.uestop;
+package com.aeloy.uestopworker;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class UestopBeApplicationTests {
+class UestopWorkerApplicationTests {
 
 	@Test
 	void contextLoads() {
