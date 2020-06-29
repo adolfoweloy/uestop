@@ -1,0 +1,5 @@
+server.port: 9000
+
+cloud.aws:
+  stack.auto: false
+  region.static: us-east-1
