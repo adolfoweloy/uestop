@@ -1,6 +1,7 @@
 package com.aeloy.uestopworker.config;
 
 import com.amazonaws.auth.EnvironmentVariableCredentialsProvider;
+import com.amazonaws.regions.Regions;
 import com.amazonaws.services.sqs.AmazonSQSAsync;
 import com.amazonaws.services.sqs.AmazonSQSAsyncClientBuilder;
 import org.springframework.cloud.aws.messaging.config.QueueMessageHandlerFactory;
@@ -52,7 +53,7 @@ public class SqsConfig {
     AmazonSQSAsync amazonSQSClient() {
         return AmazonSQSAsyncClientBuilder.standard()
                 .withCredentials(new EnvironmentVariableCredentialsProvider())
-                .withRegion("us-east-1")
+                .withRegion(Regions.US_EAST_1)
                 .build();
     }
 

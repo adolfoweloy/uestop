@@ -15,9 +15,6 @@ class TurnResource constructor(val queueMessagingTemplate: QueueMessagingTemplat
     @PostMapping
     fun finish(@RequestBody turn: Turn): ResponseEntity<Void> {
         return try {
-//            val headers = MessageHeaders(mapOf("Content-type" to "application/json"))
-//            val message = MessageBuilder
-//                    .createMessage(turn, headers)
             queueMessagingTemplate.convertAndSend("game-turn", turn)
             ResponseEntity.ok().build()
         } catch (e: Exception) {
