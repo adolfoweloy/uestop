@@ -8,6 +8,22 @@ variable "webserver-port" {
   default       = 8080
 }
 
+variable "webserver-admin-port" {
+  description = "Webserver ssh port for admin purposes"
+  type        = number
+  default     = 22
+}
+
+variable "ami-ubuntu" {
+  description = "AMI for t2.micro with Ubuntu"
+  type        = string
+  default     = "ami-0ac80df6eff0e70b5"
+}
+
+data "aws_subnet" "uestop-bastion-subnet" {
+  id = data.aws_instance.bastion.subnet_id
+}
+
 resource "aws_security_group" "uestop-webserver-sg" {
   name = "uestop-webserver-security-group"
 
@@ -18,9 +34,29 @@ resource "aws_security_group" "uestop-webserver-sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  ## enabling the ssh port to be accessed from the bastion's subnet CIDR block
+  ingress {
+    from_port = var.webserver-admin-port
+    protocol = "tcp"
+    to_port = var.webserver-admin-port
+    cidr_blocks = [data.aws_subnet.uestop-bastion-subnet.cidr_block]
+  }
+
   tags = {
     service = "uestop"
   }
+}
+
+resource "aws_security_group" "uestop-webserver-admin-sg" {
+  name = "uestop-webserver-security-group-admin"
+
+  ingress {
+    from_port = 22
+    protocol = "tcp"
+    to_port = 22
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
 }
 
 ## launch configuration is required for an ASG
@@ -44,6 +80,29 @@ resource "aws_launch_configuration" "uestop-webserver-launch-config" {
   lifecycle {
     create_before_destroy = true
   }
+}
+
+# instance to be accessed publicly as a bastion server
+resource "aws_instance" "uestop-bastion-server" {
+  ami = var.ami-ubuntu
+  instance_type = "t2.micro"
+  key_name = "aws-in-action-keypair"
+  vpc_security_group_ids = [aws_security_group.uestop-webserver-admin-sg.id]
+
+  tags = {
+    service = "uestop"
+    name    = "uestop-bastion-server"
+  }
+}
+
+# retrieving data from the bastion declared above
+data "aws_instance" "bastion" {
+  filter {
+    name = "tag:name"
+    values = ["uestop-bastion-server"]
+  }
+
+  depends_on = ["aws_instance.uestop-bastion-server"]
 }
 
 ## Dynamically retrieving the subnet IDs to be used by the ASG
