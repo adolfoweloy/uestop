@@ -3,3 +3,14 @@ variable "webserver-admin-port" {
   type        = number
   default     = 22
 }
+
+variable "layer" {
+  description = "defines the layer of a resource such as (web, admin, worker, db)"
+  type        = string
+}
+
+variable "service" {
+  description = "service name"
+  type        = string
+  default     = "uestop"
+}
