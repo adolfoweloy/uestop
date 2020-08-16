@@ -34,6 +34,10 @@ resource "aws_instance" "uestop-bastion-server" {
     service = "uestop"
     name    = "bastion-server"
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 data "aws_subnet" "uestop-bastion-subnet" {

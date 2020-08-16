@@ -1,5 +1,5 @@
 resource "aws_security_group" "security-group" {
-  name = "${var.name}.sg"
+  name = "${var.name}-sg"
 
   ingress {
     protocol    = var.inbound_protocol
