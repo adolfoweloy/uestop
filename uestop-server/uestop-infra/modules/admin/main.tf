@@ -1,21 +1,28 @@
-module "infra" {
-  source = "../common"
+module "instance" {
+  source = "../common/instance"
+}
 
-  security-group = {
-    port = 22
-    name = "sg_admin_uestop"
+module "security-group" {
+  source = "../common/security-group/inbound"
+
+  port = {
+    from = 22
+    to   = 22
   }
+
+  layer = "admin"
+  name = "sg_admin"
 }
 
 # instance to be accessed publicly as a bastion server
 resource "aws_instance" "uestop-bastion-server" {
-  ami                     = module.infra.ami
-  key_name                = module.infra.keypair-name
-  instance_type           = module.infra.instance-type
-  vpc_security_group_ids  = [module.infra.security-group-id]
+  ami                     = module.instance.ami
+  key_name                = module.instance.keypair-name
+  instance_type           = module.instance.instance-type
+  vpc_security_group_ids  = [module.security-group.id]
 
   tags = {
-    service = "uestop"
+    service = var.service
     name    = "uestop-bastion-server"
   }
 }
