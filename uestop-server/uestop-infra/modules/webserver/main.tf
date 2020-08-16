@@ -2,35 +2,24 @@ locals {
   port = 8080
 }
 
-module "infra" {
-  source = "../common"
-
-  security-group = {
-    port = local.port
-    name = "uestop-webserver-security-group"
-  }
+module "instance" {
+  source = "../common/instance"
 }
 
-## launch configuration is required for an ASG
-resource "aws_launch_configuration" "uestop-webserver-launch-config" {
-  image_id      = module.infra.ami
-  instance_type = module.infra.instance-type
+module "webserver-security-group" {
+  source = "../common/security-group"
 
-  ## creating an implicit dependency to the security group defined above
-  security_groups = [module.infra.security-group-id]
+  layer = "web"
+  name = "webserver"
 
-  user_data = <<-EOF
-              #!/bin/bash
-              echo "Hello, World" > index.html
-              nohup busybox httpd -f -p ${local.port} &
-              EOF
+  inbound_port = {
+    from = local.port
+    to   = local.port
+  }
 
-  // this lifecycle was added because launch config is immutable and by default, terraform tries to replace this with a new resource
-  // and it tries to delete this resource in order to replace it. However as it's being referenced by the ASG, it can't
-  // delete the resource. This lifecycle attribute allows to create the new resource and updating references to the old
-  // to start pointing to the new resource. Then the old is free to be deleted.
-  lifecycle {
-    create_before_destroy = true
+  outbound_port = {
+    from = 0
+    to   = 0
   }
 }
 
@@ -43,12 +32,31 @@ data "aws_subnet_ids" "subnet-default" {
   vpc_id = data.aws_vpc.vpc-default.id
 }
 
-## creates the ASG
-resource "aws_autoscaling_group" "uestop-webserver-asg" {
-  launch_configuration = aws_launch_configuration.uestop-webserver-launch-config.name
-  vpc_zone_identifier = data.aws_subnet_ids.subnet-default.ids
+## Defines how the ASG will launch new instances
+resource "aws_launch_configuration" "webserver-launch-config" {
+  image_id        = module.instance.ami
+  instance_type   = module.instance.type
+  security_groups = [module.webserver-security-group.id]
 
-  target_group_arns = [aws_lb_target_group.asg.arn]
+  user_data = <<-EOF
+              #!/bin/bash
+              echo "Hello, World" > index.html
+              nohup busybox httpd -f -p ${local.port} &
+              EOF
+
+  // this allows the ASG to point to the new launch configuration resource before deleting the current version.
+  // it's not possible to delete the current without changing the pointers while this is being used by the ASG.
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+## creates the ASG
+resource "aws_autoscaling_group" "webserver-asg" {
+  launch_configuration  = aws_launch_configuration.webserver-launch-config.name
+  vpc_zone_identifier   = data.aws_subnet_ids.subnet-default.ids
+
+  target_group_arns = [aws_lb_target_group.webserver-target-group.arn]
   health_check_type = "ELB"
 
   min_size = 2
@@ -57,35 +65,38 @@ resource "aws_autoscaling_group" "uestop-webserver-asg" {
 }
 
 ## security group for the LB
-resource "aws_security_group" "alb" {
-  name = "uestop-loadbalancer-sg"
+module "lb-security-group" {
+  source = "../common/security-group"
 
-  ingress {
-    from_port = 80
-    protocol = "tcp"
-    to_port = 80
-    cidr_blocks = ["0.0.0.0/0"]
+  layer = "web"
+  name = "webserver-lb"
+
+  inbound_port = {
+    from = 80
+    to   = 80
   }
 
-  egress {
-    from_port = 0
-    protocol = "-1"
-    to_port = 0
-    cidr_blocks = ["0.0.0.0/0"]
+  outbound_port = {
+    from = 0
+    to   = 0
   }
 }
 
 ## creating the ALB
-resource "aws_lb" "uestop-webserver-lb" {
+resource "aws_lb" "webserver-lb" {
   name                = "webserver-lb"
   load_balancer_type  = "application"
   subnets             = data.aws_subnet_ids.subnet-default.ids
-  security_groups     = [aws_security_group.alb.id]
+  security_groups     = [module.lb-security-group.id]
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 ## ALB listener
-resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.uestop-webserver-lb.arn
+resource "aws_lb_listener" "webserver-http" {
+  load_balancer_arn = aws_lb.webserver-lb.arn
   port              = 80
   protocol          = "HTTP"
 
@@ -98,13 +109,17 @@ resource "aws_lb_listener" "http" {
       status_code   = 404
     }
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
-resource "aws_lb_target_group" "asg" {
-  name = "webserver-asg"
-  port = var.webserver-port
-  protocol = "HTTP"
-  vpc_id = data.aws_vpc.vpc-default.id
+resource "aws_lb_target_group" "webserver-target-group" {
+  name      = "webserver-asg"
+  port      = var.webserver-port
+  protocol  = "HTTP"
+  vpc_id    = data.aws_vpc.vpc-default.id
 
   health_check {
     path                = "/"
@@ -115,12 +130,17 @@ resource "aws_lb_target_group" "asg" {
     healthy_threshold   = 2
     unhealthy_threshold = 2
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 ## this is the resource that ties everything together
+## that is to forward requests that come to the LB to the target group
 resource "aws_lb_listener_rule" "asg" {
-  listener_arn = aws_lb_listener.http.arn
-  priority = 100
+  listener_arn  = aws_lb_listener.webserver-http.arn
+  priority      = 100
 
   condition {
     path_pattern {
@@ -130,10 +150,10 @@ resource "aws_lb_listener_rule" "asg" {
 
   action {
     type = "forward"
-    target_group_arn = aws_lb_target_group.asg.arn
+    target_group_arn = aws_lb_target_group.webserver-target-group.arn
   }
 }
 
 output "webserver_public_ip" {
-  value = aws_lb.uestop-webserver-lb.dns_name
+  value = aws_lb.webserver-lb.dns_name
 }
