@@ -23,14 +23,6 @@ module "webserver-security-group" {
   }
 }
 
-## Dynamically retrieving the subnet IDs to be used by the ASG
-data "aws_vpc" "vpc-default" {
-  default = true
-}
-
-data "aws_subnet_ids" "subnet-default" {
-  vpc_id = data.aws_vpc.vpc-default.id
-}
 
 ## Defines how the ASG will launch new instances
 resource "aws_launch_configuration" "webserver-launch-config" {
@@ -54,7 +46,7 @@ resource "aws_launch_configuration" "webserver-launch-config" {
 ## creates the ASG
 resource "aws_autoscaling_group" "webserver-asg" {
   launch_configuration  = aws_launch_configuration.webserver-launch-config.name
-  vpc_zone_identifier   = data.aws_subnet_ids.subnet-default.ids
+  vpc_zone_identifier   = module.instance.vpc-id
 
   target_group_arns = [aws_lb_target_group.webserver-target-group.arn]
   health_check_type = "ELB"
@@ -86,7 +78,7 @@ module "lb-security-group" {
 resource "aws_lb" "webserver-lb" {
   name                = "webserver-lb"
   load_balancer_type  = "application"
-  subnets             = data.aws_subnet_ids.subnet-default.ids
+  subnets             = module.instance.subnet-ids
   security_groups     = [module.lb-security-group.id]
 
   lifecycle {
@@ -119,7 +111,7 @@ resource "aws_lb_target_group" "webserver-target-group" {
   name      = "webserver-asg"
   port      = var.webserver-port
   protocol  = "HTTP"
-  vpc_id    = data.aws_vpc.vpc-default.id
+  vpc_id    = module.instance.vpc-id
 
   health_check {
     path                = "/"
