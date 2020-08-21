@@ -3,24 +3,33 @@ module "instance" {
   source = "../instance"
 }
 
+## configuring security group
 module "lb-security-group" {
   source = "../security-group"
 
   layer = "web"
   name = "webserver-lb"
-
-  inbound_port = {
-    from = var.lb_port
-    to   = var.lb_port
-  }
-
-  outbound_port = {
-    from = 0
-    to   = 0
-  }
 }
 
-## creating the ALB
+resource "aws_security_group_rule" "http-ingress" {
+  from_port = var.lb_port
+  to_port = var.lb_port
+  protocol = "tcp"
+  security_group_id = module.lb-security-group.id
+  type = "ingress"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+resource "aws_security_group_rule" "http-egress" {
+  from_port = 0
+  to_port = 0
+  protocol = "-1"
+  security_group_id = module.lb-security-group.id
+  type = "egress"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+## creating the application Load Balancer
 resource "aws_lb" "load-balancer" {
   name                = "${var.name}-lb"
   load_balancer_type  = "application"

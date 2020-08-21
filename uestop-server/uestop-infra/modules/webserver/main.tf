@@ -11,17 +11,41 @@ module "webserver-security-group" {
 
   layer = "web"
   name = "webserver"
-
-  inbound_port = {
-    from = local.port
-    to   = local.port
-  }
-
-  outbound_port = {
-    from = 0
-    to   = 0
-  }
 }
+
+##########################################################################
+## security group to allow access to http from the internet
+##########################################################################
+
+resource "aws_security_group_rule" "http-ingress" {
+  from_port = local.port
+  protocol = "tcp"
+  security_group_id = module.webserver-security-group.id
+  to_port = local.port
+  type = "ingress"
+  cidr_blocks = ["0.0.0.0/0"]
+}
+
+##########################################################################
+## configures security group to allow ssh from bastion's security group
+##########################################################################
+
+module "admin" {
+  source = "../admin"
+}
+
+resource "aws_security_group_rule" "admin-ingress" {
+  from_port = 22
+  protocol = "tcp"
+  security_group_id = module.webserver-security-group.id
+  to_port = 22
+  type = "ingress"
+  source_security_group_id = module.admin.admin-security-group-id
+}
+
+##########################################################################
+## adding load balancer module
+##########################################################################
 
 module "application-load-balancer" {
   source    = "../common/alb"
@@ -30,6 +54,10 @@ module "application-load-balancer" {
   app_port  = local.port
   name      = "webserver"
 }
+
+##########################################################################
+## adding support for autoscaling (which already contains instance
+##########################################################################
 
 module "autoscaling" {
   source = "../common/autoscaling"
