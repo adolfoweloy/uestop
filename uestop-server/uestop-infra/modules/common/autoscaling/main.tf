@@ -6,9 +6,10 @@ module "instance" {
 resource "aws_launch_configuration" "webserver-launch-config" {
   image_id        = module.instance.ami
   instance_type   = module.instance.type
-  security_groups = var.security_groups
+  key_name        = module.instance.keypair
 
-  user_data = var.user_data
+  security_groups = var.security_groups
+  user_data       = var.user_data
 
   // this allows the ASG to point to the new launch configuration resource before deleting the current version.
   // it's not possible to delete the current without changing the pointers while this is being used by the ASG.

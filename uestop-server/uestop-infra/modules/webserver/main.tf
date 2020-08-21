@@ -30,17 +30,13 @@ resource "aws_security_group_rule" "http-ingress" {
 ## configures security group to allow ssh from bastion's security group
 ##########################################################################
 
-module "admin" {
-  source = "../admin"
-}
-
 resource "aws_security_group_rule" "admin-ingress" {
   from_port = 22
   protocol = "tcp"
   security_group_id = module.webserver-security-group.id
   to_port = 22
   type = "ingress"
-  source_security_group_id = module.admin.admin-security-group-id
+  source_security_group_id = var.admin-security-group-id
 }
 
 ##########################################################################

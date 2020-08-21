@@ -14,6 +14,10 @@ output "subnet-ids" {
   value = data.aws_subnet_ids.subnet-default.ids
 }
 
+output "vpc-cidr-block" {
+  value = data.aws_vpc.vpc-default.cidr_block
+}
+
 output "ami" {
   description = "AMI for t2.micro with Ubuntu"
   value     = "ami-0ac80df6eff0e70b5"

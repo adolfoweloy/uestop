@@ -8,6 +8,7 @@ module "admin-server" {
 
 module "web-server" {
   source = "./modules/webserver"
+  admin-security-group-id = module.admin-server.admin-security-group-id
 }
 
 module "worker-server" {
@@ -16,4 +17,8 @@ module "worker-server" {
 
 output "webserver-domain" {
   value = module.web-server.webserver-dns
+}
+
+output "admin-host-public-name" {
+  value = module.admin-server.bastion_host_public_name
 }

@@ -24,11 +24,11 @@ resource "aws_security_group_rule" "ssh-ingress" {
 
 resource "aws_security_group_rule" "ssh-egress" {
   type = "egress"
-  from_port = 0
-  to_port = 0
+  from_port = 22
+  to_port = 22
   protocol = "tcp"
   security_group_id = module.admin-security-group.id
-  cidr_blocks = ["0.0.0.0/0"]
+  cidr_blocks = [module.instance.vpc-cidr-block]
 }
 
 resource "aws_security_group_rule" "icmp-ingress" {

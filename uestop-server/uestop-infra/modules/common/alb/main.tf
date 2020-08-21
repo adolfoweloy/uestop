@@ -35,10 +35,6 @@ resource "aws_lb" "load-balancer" {
   load_balancer_type  = "application"
   subnets             = module.instance.subnet-ids
   security_groups     = [module.lb-security-group.id]
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 ## ALB listener
@@ -56,30 +52,22 @@ resource "aws_lb_listener" "http" {
       status_code   = 404
     }
   }
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 resource "aws_lb_target_group" "target-group" {
-  name      = "${var.name}-tg"
-  port      = var.app_port
-  protocol  = "HTTP"
-  vpc_id    = module.instance.vpc-id
+  name = "${var.name}-tg"
+  port = var.app_port
+  protocol = "HTTP"
+  vpc_id = module.instance.vpc-id
 
   health_check {
-    path                = "/"
-    protocol            = "HTTP"
-    matcher             = "200"
-    interval            = 15
-    timeout             = 3
-    healthy_threshold   = 2
+    path = "/"
+    protocol = "HTTP"
+    matcher = "200"
+    interval = 15
+    timeout = 3
+    healthy_threshold = 2
     unhealthy_threshold = 2
-  }
-
-  lifecycle {
-    create_before_destroy = true
   }
 }
 
